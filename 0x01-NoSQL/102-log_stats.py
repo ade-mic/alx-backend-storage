@@ -23,14 +23,6 @@ def nginx_stats():
     # Number of logs with method=GET and path=/status
     status_check = collection.count_documents({"method": "GET", "path": "/status"})
 
-    # Display the statistics
-    print(f"{total_logs} logs")
-    print("Methods:")
-    for method in methods:
-        print(f"\tmethod {method}: {method_counts[method]}")
-    print(f"{status_check} status check")
-
-
     # Top 10 most present IPs
     top_ips = collection.aggregate([
         {"$group": {"_id": "$ip", "count": {"$sum": 1}}},
