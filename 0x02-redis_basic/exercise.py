@@ -22,7 +22,7 @@ def count_calls(method: Callable) -> Callable:
         Callable: The wrapped method with counting functionality.
     """
     # Generate the key using the method's qualified name
-    key = method.__qualname__
+    key = f"{method.__qualname__}"
 
     @wraps(method)
     def wrapper(self, *args, **kwargs):
