@@ -32,7 +32,7 @@ def count_calls(method: Callable) -> Callable:
             self: The instance of the class (gives access to Redis).
         """
         # Increment the count for this key in Redis
-        self._redis.incr(f"{method.__qualname__}")
+        self._redis.incr(method.__qualname__)
         # Call the original method
         return method(self, *args, **kwargs)
     return wrapper
