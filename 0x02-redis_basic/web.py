@@ -6,33 +6,53 @@ import requests
 import redis
 from typing import Callable
 from functools import wraps
+import hashlib
+# Initialize Redis client
+cache = redis.Redis()
 
-cache = TTLCache(maxsize=100, ttl=10)
 
+def cache_page(func: int = 10) -> Callable:
+    """
+    Decorator to cache the HTML content of a URL with an expiration time.
+    Tracks how many times each URL is accessed.
+    """
+    @wraps(func)
+    def wrapper(url):
+        # Generate a unique key for the URL content
+        url_hash = hashlib.sha256(url.encode()).hexdigest()
+        cache_key = f"page:{url_hash}"
+        count_key = f"count:{url_hash}"
 
-def cache_decorator(func: Callable) -> Callable:
-    """Decorator to cache function results and track access counts."""
-    def wrapper(url: str) -> str:
-        # Track access count
-        if f"count:{url}" not in cache:
-            cache[f"count:{url}"] = 0
-        cache[f"count:{url}"] += 1
+        # Check if the page content is already cached
+        cached_page = cache.get(cache_key)
+        if cached_page:
+            # Increment the access count for the URL in Redis
+            cache.incr(count_key)
+            return cached_page.decode('utf-8')
 
-        # Use cachetools' cached decorator to cache the result
-        return cached(cache)(func)(url)
+        # If not cached, call the original function to get the page
+        page_content = func(url)
+
+        # Store the page content in Redis with a 10-second expiration
+        cache.setex(cache_key, 10, page_content)
+        # Initialize access count to 1
+        cache.set(count_key, 1)
+
+        return page_content
     return wrapper
 
 
-@cache_decorator
+@cache_page
 def get_page(url: str) -> str:
-    """Fetch the HTML content of a URL and cache the result.
+    """
+    Fetch HTML content of a URL, with caching and access count tracking.
 
     Args:
-        url (str): The URL to fetch.
+        url (str): The URL to retrieve content from.
 
     Returns:
         str: The HTML content of the URL.
     """
     response = requests.get(url)
-    response.raise_for_status()  # Raise an error for bad status codes
+    response.raise_for_status()
     return response.text
